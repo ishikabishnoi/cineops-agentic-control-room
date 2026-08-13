@@ -10,11 +10,11 @@ from supabase import create_client
 import google.generativeai as genai
 env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(dotenv_path=env_path, override=True)
-print("ENV PATH:", env_path)
-print("NEXT_PUBLIC_SUPABASE_URL:", os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
+# print("ENV PATH:", env_path)
+# print("NEXT_PUBLIC_SUPABASE_URL:", os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
 supabase = create_client( os.getenv("NEXT_PUBLIC_SUPABASE_URL"), os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") ) 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY")) 
-model = genai.GenerativeModel("gemini-3.5-flash-lite") 
+# model = genai.GenerativeModel("gemini-3.5-flash-lite") 
 app = FastAPI() 
 @app.post("/analyze")
 def analyze():
@@ -27,11 +27,6 @@ def analyze():
         .data
     )
 
-    summary_data = {
-        "scheduled_scenes": sum(r["scenes_scheduled"] for r in data),
-        "completed_scenes": sum(r["scenes_completed"] for r in data),
-    }
-
     schedule_kpis = get_schedule_kpis(data)
     budget_kpis = get_budget_kpis(data)
 
@@ -39,9 +34,11 @@ def analyze():
 
     schedule_result = run_schedule_agent(schedule_kpis)
     budget_result = run_budget_agent(budget_kpis)
-    executive_result = run_executive_agent( primary_constraint, 
-                                           schedule_result, 
-                                           budget_result )
+    executive_result = run_executive_agent( primary_constraint,
+                                            time_score, 
+                                            budget_score,
+                                            schedule_result, 
+                                            budget_result )
 
     return {
 
@@ -56,4 +53,5 @@ def analyze():
         "budget_agent": budget_result,
 
         "executive_agent": executive_result,
+        "recent_reports": data,
     }

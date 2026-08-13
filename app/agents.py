@@ -46,9 +46,11 @@ Return this exact structure:
     return json.loads(response.text)
 
 
-def run_executive_agent(primary_constraint, schedule_result, budget_result):
+def run_executive_agent(primary_constraint, time_score, budget_score, schedule_result, budget_result):
     payload = {
         "primary_constraint": primary_constraint,
+        "time_pressure_score": time_score,
+        "budget_pressure_score": budget_score,
         "schedule_agent": schedule_result,
         "budget_agent": budget_result,
     }
@@ -64,12 +66,13 @@ Input:
 {json.dumps(payload)}
 
 Return this exact structure:
-{{
-  "overall_risk": "HIGH or MEDIUM or LOW",
-  "priority_action": "one short sentence",
-  "executive_summary": "2-3 sentence executive summary"
-  "confidence": "HIGH or MEDIUM or LOW" 
-}}
+ {{ "overall_risk": "HIGH or MEDIUM or LOW", 
+ "priority_action": "one short sentence",
+   "executive_summary": "2-3 sentence executive summary", 
+   "confidence": {{ "level": "HIGH or MEDIUM or LOW", 
+   "reason": "one short sentence" 
+   }} 
+   }}
 """
 
     response = model.generate_content(prompt)
