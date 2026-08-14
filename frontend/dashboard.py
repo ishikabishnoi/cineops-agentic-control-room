@@ -1,133 +1,246 @@
-import streamlit as st
-import requests
+import os
+
 import pandas as pd
+import requests
+import streamlit as st
+
+
+API_URL = os.getenv(
+    "CINEOPS_API_URL",
+    "http://127.0.0.1:8000/analyze",
+)
 
 st.set_page_config(
     page_title="CineOps",
-    layout="wide"
+    layout="wide",
 )
 
 st.title("🎬 CineOps — Agentic Production Control Room")
 
 st.caption(
-    "Gemini-powered multi-agent production analytics for film and media operations"
+    "Gemini-powered multi-agent production analytics "
+    "for film and media operations"
 )
 
 st.markdown(
-    "Operational intelligence for production teams — combining schedule, budget, and executive decision agents."
+    "Operational intelligence for production teams — combining "
+    "schedule, budget, and executive decision agents."
 )
 
-if st.button("Analyze Production"):
 
-    response = requests.post("http://127.0.0.1:8000/analyze")
-    result = response.json()
+if st.button("Analyze Production", type="primary"):
+    result = None
 
-    # -------------------------
-    # KPI CARDS
-    # -------------------------
+    try:
+        with st.spinner("Analyzing production data..."):
+            response = requests.post(
+                API_URL,
+                timeout=120,
+            )
+            response.raise_for_status()
+            result = response.json()
 
-    st.subheader("Production Health")
+    except requests.exceptions.Timeout:
+        st.error("Unable to complete production analysis.")
+        st.info("The analysis took too long. Please try again.")
 
-    col1, col2, col3, col4 = st.columns(4)
+    except requests.exceptions.ConnectionError:
+        st.error("Unable to connect to the CineOps backend.")
+        st.info("Please verify that the API is running and try again.")
 
-    with col1:
-     st.metric("Primary Constraint", result["primary_constraint"])
+    except requests.exceptions.HTTPError:
+        st.error("Unable to complete production analysis.")
+        st.info(
+            f"The backend returned status code "
+            f"{response.status_code}. Please try again."
+        )
 
-    with col2:
-     st.metric(
-        "Completion Rate",
-        f'{result["schedule_kpis"]["completion_rate"]}%'
-    )
+    except requests.exceptions.RequestException:
+        st.error("Unable to complete production analysis.")
+        st.info("A network error occurred. Please try again.")
 
-    with col3:
-     st.metric(
-        "Schedule Pressure",
-        result["time_pressure_score"]
-    )
+    except ValueError:
+        st.error("Unable to read the production analysis.")
+        st.info("The backend returned an invalid response.")
 
-    with col4:
-     st.metric(
-        "Budget Pressure",
-        result["budget_pressure_score"]
-    )
+    if result is not None:
+        try:
+            # -------------------------
+            # KPI CARDS
+            # -------------------------
 
-    st.divider()
+            st.subheader("Production Health")
 
-    # -------------------------
-    # AGENT PANELS
-    # -------------------------
+            col1, col2, col3, col4 = st.columns(4)
 
-    st.subheader("Agent Analysis")
+            with col1:
+                st.metric(
+                    "Primary Constraint",
+                    result["primary_constraint"],
+                )
 
-    schedule_col, budget_col = st.columns(2)
+            with col2:
+                st.metric(
+                    "Completion Rate",
+                    f'{result["schedule_kpis"]["completion_rate"]}%',
+                )
 
-    with schedule_col:
-        st.markdown("### Schedule Agent")
+            with col3:
+                st.metric(
+                    "Schedule Pressure",
+                    result["time_pressure_score"],
+                )
 
-        schedule = result["schedule_agent"]
+            with col4:
+                st.metric(
+                    "Budget Pressure",
+                    result["budget_pressure_score"],
+                )
 
-        if schedule["risk"] == "HIGH":
-            st.error(f'Risk: {schedule["risk"]}')
-        elif schedule["risk"] == "MEDIUM":
-            st.warning(f'Risk: {schedule["risk"]}')
-        else:
-            st.success(f'Risk: {schedule["risk"]}')
+            st.divider()
 
-        st.write("**Finding**")
-        st.write(schedule["finding"])
+            # -------------------------
+            # AGENT PANELS
+            # -------------------------
 
-        st.write("**Recommended Action**")
-        st.write(schedule["action"])
+            st.subheader("Agent Analysis")
 
-    with budget_col:
-        st.markdown("### Budget Agent")
+            schedule_col, budget_col = st.columns(2)
 
-        budget = result["budget_agent"]
+            with schedule_col:
+                st.markdown("### Schedule Agent")
 
-        if budget["risk"] == "HIGH":
-            st.error(f'Risk: {budget["risk"]}')
-        elif budget["risk"] == "MEDIUM":
-            st.warning(f'Risk: {budget["risk"]}')
-        else:
-            st.success(f'Risk: {budget["risk"]}')
+                schedule = result["schedule_agent"]
 
-        st.write("**Finding**")
-        st.write(budget["finding"])
+                if schedule["risk"] == "HIGH":
+                    st.error(f'Risk: {schedule["risk"]}')
+                elif schedule["risk"] == "MEDIUM":
+                    st.warning(f'Risk: {schedule["risk"]}')
+                else:
+                    st.success(f'Risk: {schedule["risk"]}')
 
-        st.write("**Recommended Action**")
-        st.write(budget["action"])
+                st.write("**Finding**")
+                st.write(schedule["finding"])
 
-    st.divider()
+                st.write("**Recommended Action**")
+                st.write(schedule["action"])
 
-    # -------------------------
-    # EXECUTIVE PANEL
-    # -------------------------
+            with budget_col:
+                st.markdown("### Budget Agent")
 
+                budget = result["budget_agent"]
 
-st.divider()
+                if budget["risk"] == "HIGH":
+                    st.error(f'Risk: {budget["risk"]}')
+                elif budget["risk"] == "MEDIUM":
+                    st.warning(f'Risk: {budget["risk"]}')
+                else:
+                    st.success(f'Risk: {budget["risk"]}')
 
-st.subheader("Executive Decision")
+                st.write("**Finding**")
+                st.write(budget["finding"])
 
-executive = result["executive_agent"]
+                st.write("**Recommended Action**")
+                st.write(budget["action"])
 
-if executive["overall_risk"] == "HIGH":
-    st.error(f'OVERALL RISK: {executive["overall_risk"]}')
-elif executive["overall_risk"] == "MEDIUM":
-    st.warning(f'OVERALL RISK: {executive["overall_risk"]}')
-else:
-    st.success(f'OVERALL RISK: {executive["overall_risk"]}')
+            st.divider()
 
-with st.container(border=True):
+            # -------------------------
+            # EXECUTIVE PANEL
+            # -------------------------
 
-    st.markdown("### Priority Action")
-    st.markdown(f"**{executive['priority_action']}**")
+            st.subheader("Executive Decision")
 
-    st.markdown("### Executive Summary")
-    st.write(executive["executive_summary"])
+            executive = result["executive_agent"]
 
-    confidence = executive["confidence"]
+            if executive["overall_risk"] == "HIGH":
+                st.error(
+                    f'OVERALL RISK: {executive["overall_risk"]}'
+                )
+            elif executive["overall_risk"] == "MEDIUM":
+                st.warning(
+                    f'OVERALL RISK: {executive["overall_risk"]}'
+                )
+            else:
+                st.success(
+                    f'OVERALL RISK: {executive["overall_risk"]}'
+                )
 
-    st.markdown("### Confidence")
-    st.write(
-        f'**{confidence["level"]}** — {confidence["reason"]}'
-    )
+            with st.container(border=True):
+                st.markdown("### Priority Action")
+                st.markdown(
+                    f"**{executive['priority_action']}**"
+                )
+
+                st.markdown("### Executive Summary")
+                st.write(executive["executive_summary"])
+
+                confidence = executive["confidence"]
+
+                st.markdown("### Confidence")
+                st.write(
+                    f'**{confidence["level"]}** — '
+                    f'{confidence["reason"]}'
+                )
+
+            st.divider()
+
+            # -------------------------
+            # PRODUCTION TREND
+            # -------------------------
+
+            reports = pd.DataFrame(result["recent_reports"])
+
+            required_columns = {
+                "report_date",
+                "scenes_scheduled",
+                "scenes_completed",
+            }
+
+            if (
+                not reports.empty
+                and required_columns.issubset(reports.columns)
+            ):
+                reports["report_date"] = pd.to_datetime(
+                    reports["report_date"]
+                )
+                reports = reports.sort_values("report_date")
+
+                reports["scenes_scheduled"] = pd.to_numeric(
+                    reports["scenes_scheduled"],
+                    errors="coerce",
+                ).fillna(0)
+
+                reports["scenes_completed"] = pd.to_numeric(
+                    reports["scenes_completed"],
+                    errors="coerce",
+                ).fillna(0)
+
+                reports["Cumulative Scheduled"] = (
+                    reports["scenes_scheduled"].cumsum()
+                )
+
+                reports["Cumulative Completed"] = (
+                    reports["scenes_completed"].cumsum()
+                )
+
+                trend_data = reports.set_index("report_date")[
+                    [
+                        "Cumulative Scheduled",
+                        "Cumulative Completed",
+                    ]
+                ]
+
+                st.subheader("Production Progress Trend")
+                st.caption(
+                    "Planned versus completed scenes "
+                    "during the current analysis window."
+                )
+
+                st.line_chart(trend_data)
+
+        except (KeyError, TypeError):
+            st.error("Unable to display the production analysis.")
+            st.info(
+                "The backend response is missing required data."
+            )
