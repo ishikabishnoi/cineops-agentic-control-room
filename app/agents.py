@@ -1,7 +1,37 @@
 import json
-import google.generativeai as genai
+import os
+from functools import lru_cache
 
-model = genai.GenerativeModel("gemini-3.5-flash-lite")
+from google import genai
+from google.genai import types
+
+
+MODEL_NAME = "gemini-3.5-flash-lite"
+
+
+@lru_cache(maxsize=1)
+def get_gemini_client():
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+    return genai.Client(api_key=api_key)
+
+
+def generate_json(prompt):
+    response = get_gemini_client().models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        ),
+    )
+
+    if not response.text:
+        raise RuntimeError("Gemini returned an empty response.")
+
+    return json.loads(response.text)
 
 
 def run_schedule_agent(schedule_kpis):
@@ -21,8 +51,7 @@ Return this exact structure:
 }}
 """
 
-    response = model.generate_content(prompt)
-    return json.loads(response.text)
+    return generate_json(prompt)
 
 
 def run_budget_agent(budget_kpis):
@@ -42,11 +71,16 @@ Return this exact structure:
 }}
 """
 
-    response = model.generate_content(prompt)
-    return json.loads(response.text)
+    return generate_json(prompt)
 
 
-def run_executive_agent(primary_constraint, time_score, budget_score, schedule_result, budget_result):
+def run_executive_agent(
+    primary_constraint,
+    time_score,
+    budget_score,
+    schedule_result,
+    budget_result,
+):
     payload = {
         "primary_constraint": primary_constraint,
         "time_pressure_score": time_score,
@@ -66,14 +100,15 @@ Input:
 {json.dumps(payload)}
 
 Return this exact structure:
- {{ "overall_risk": "HIGH or MEDIUM or LOW", 
- "priority_action": "one short sentence",
-   "executive_summary": "2-3 sentence executive summary", 
-   "confidence": {{ "level": "HIGH or MEDIUM or LOW", 
-   "reason": "one short sentence" 
-   }} 
-   }}
+{{
+  "overall_risk": "HIGH or MEDIUM or LOW",
+  "priority_action": "one short sentence",
+  "executive_summary": "2-3 sentence executive summary",
+  "confidence": {{
+    "level": "HIGH or MEDIUM or LOW",
+    "reason": "one short sentence"
+  }}
+}}
 """
 
-    response = model.generate_content(prompt)
-    return json.loads(response.text)
+    return generate_json(prompt)

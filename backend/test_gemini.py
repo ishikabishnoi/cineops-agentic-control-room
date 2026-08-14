@@ -1,15 +1,23 @@
-from dotenv import load_dotenv
-from pathlib import Path
 import os
-import google.generativeai as genai
+from pathlib import Path
 
-env_path = Path(__file__).resolve().parent.parent / ".env"
+from dotenv import load_dotenv
+from google import genai
+
+
+env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(env_path)
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+api_key = os.getenv("GEMINI_API_KEY")
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+if not api_key:
+    raise RuntimeError("GEMINI_API_KEY is not configured.")
 
-response = model.generate_content("Say exactly: Gemini connection successful")
+client = genai.Client(api_key=api_key)
+
+response = client.models.generate_content(
+    model="gemini-3.5-flash-lite",
+    contents="Say exactly: Gemini connection successful",
+)
 
 print(response.text)

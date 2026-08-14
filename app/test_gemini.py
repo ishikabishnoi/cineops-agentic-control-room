@@ -1,13 +1,23 @@
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 
-load_dotenv()
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+env_path = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(env_path)
 
-model = genai.GenerativeModel("models/gemini-3.5-flash-lite")
+api_key = os.getenv("GEMINI_API_KEY")
 
-response = model.generate_content("Say exactly: CineOps AI is working")
+if not api_key:
+    raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+client = genai.Client(api_key=api_key)
+
+response = client.models.generate_content(
+    model="gemini-3.5-flash-lite",
+    contents="Say exactly: CineOps AI is working",
+)
 
 print(response.text)
