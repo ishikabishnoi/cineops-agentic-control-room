@@ -30,6 +30,12 @@ supabase = create_client(supabase_url, supabase_key)
 
 app = FastAPI()
 
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "cineops-api",
+    }
 
 @app.post("/analyze")
 def analyze():
